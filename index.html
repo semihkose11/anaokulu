@@ -125,7 +125,7 @@ const dayKey=t=>{const d=new Date(t);return d.getFullYear()+'-'+String(d.getMont
 const dayRange=k=>{const [y,m,d]=k.split('-').map(Number);return [new Date(y,m-1,d).toISOString(),new Date(y,m-1,d+1).toISOString()]};
 const tel=p=>String(p||'').replace(/[^\d+]/g,'');
 const PURPOSES=['Çocuğu teslim alacağım','Çocuğu bırakıyorum','Öğretmenle görüşmek istiyorum'];
-const RELS=['Anne','Baba','Büyükanne / Büyükbaba','Bakıcı','Diğer'];
+const RELS=['Anne','Baba','Diğer'];
 const ST={new:'Bekliyor',coming:'Öğretmen geliyor',closed:'Tamamlandı'};
 const $=id=>document.getElementById(id);
 const setErr=(m,id='err')=>{const e=$(id);if(e)e.textContent=m};
@@ -275,7 +275,7 @@ async function setPw(){
   const {error}=await sb.auth.updateUser({password:a});
   if(error) return setErr(/same|different/i.test(error.message)?'Yeni şifre eskisinden farklı olmalı.':'Şifre değiştirilemedi: '+error.message);
   await sb.rpc('password_changed'); await loadMe();
-  go(me.role==='admin'?'yonetici':'ogretmen');
+  go(me.role==='admin'?'yonetici':'kurulum');
 }
 
 /* ====== ÖĞRETMEN ====== */
@@ -286,9 +286,7 @@ async function teacherHTML(){
   return `<h1>Bekleyen veliler</h1>
   ${open.length?open.map(callHTML).join(''):'<p class="lead">Şu an bekleyen veli yok.</p>'}
   <p class="note">
-    ${perm==='granted'?'Bildirimler açık.':`<button class="link" onclick="askNotif()">Bildirimleri aç</button>`}
-    &nbsp; <button class="link" onclick="testNotif()">Test bildirimi gönder</button>
-    <span id="tmsg" style="display:block"></span></p>`;
+    ${perm==='granted'?'Bildirimler açık.':`<button class="link" onclick="askNotif()">Bildirimleri aç</button>`}</p>`;
 }
 function callHTML(c){
   return `<div class="call ${c.id===state.flash?'flash':''}">
@@ -309,7 +307,12 @@ async function setSt(id,s){
 }
 function askNotif(){ try{Notification.requestPermission().then(()=>route())}catch(e){alert('Bu tarayıcı bildirimleri desteklemiyor. iPhone’da siteyi önce ana ekrana ekleyin.')} }
 function notify(title,body){ ding(); try{ if(Notification.permission==='granted') new Notification(title,{body}) }catch(e){} }
-function testNotif(){ notify('Test bildirimi','Bildirimler çalışıyor.'); const b=$('tmsg'); if(b) b.textContent='Test bildirimi gönderildi. Ses duyduysanız sistem çalışıyor.'; }
+async function testNotif(){
+  const b=$('tmsg');
+  try{ if('Notification' in window&&Notification.permission==='default') await Notification.requestPermission(); }catch(e){}
+  notify('Test bildirimi','Bildirimler çalışıyor.');
+  if(b) b.textContent=('Notification' in window&&Notification.permission==='granted')?'Test bildirimi gönderildi. Bildirim ve ses geldiyse kurulum tamam.':'Ses çaldı ama bildirim izni verilmedi. iPhone’da siteyi önce ana ekrana ekleyip oradan açın.';
+}
 function ding(){try{const a=new (window.AudioContext||window.webkitAudioContext)();[0,.2].forEach((d,i)=>{const o=a.createOscillator(),g=a.createGain();o.frequency.value=i?1046:784;g.gain.setValueAtTime(.2,a.currentTime+d);g.gain.exponentialRampToValueAtTime(.001,a.currentTime+d+.4);o.connect(g).connect(a.destination);o.start(a.currentTime+d);o.stop(a.currentTime+d+.45)})}catch(e){}}
 
 /* canlı güncelleme */
@@ -342,7 +345,9 @@ function setupHTML(){
     <li>Simgeyi sildiyseniz adımları baştan yapın.</li>
     <li>iOS sürümü 16.4 veya daha yeni olmalı.</li>
   </ul></div></details>
-  <p style="margin-top:22px"><a href="#giris">Giriş sayfasına dön</a></p>`;
+  <button class="dark wide" onclick="testNotif()">Bildirimi test et</button>
+  <p id="tmsg" class="muted" style="margin-top:10px"></p>
+  <p style="margin-top:22px">${me?.role==='teacher'?'<a href="#ogretmen">Panele geç</a>':'<a href="#giris">Giriş sayfasına dön</a>'}</p>`;
 }
 
 /* ====== YÖNETİCİ ====== */
