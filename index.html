@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light">
+<meta name="description" content="Anaokulu QR kapı sistemi">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Kapı Sistemi">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🏫</text></svg>">
+<title>Anaokulu Kapı Sistemi</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js"></script>
+<style>
+:root{
+  --bg:#FFFFFF; --ink:#000000; --soft:#555555; --line:#D6D6D6; --tint:#F5F5F5; --warn:#8A1C1C; --ok:#1E5B2E;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+:root[data-theme="dark"], :root:not([data-theme="light"]){ --bg:#FFFFFF; --ink:#000000; }
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*,*::before,*::after{box-sizing:inherit}
+body{margin:0;background:var(--bg);color:var(--ink);font:18px/1.6 "Source Serif 4",Georgia,"Times New Roman",serif}
+h1,h2,h3{font-weight:700;line-height:1.2;margin:0}
+h1{font-size:clamp(28px,6vw,36px)} h2{font-size:24px} h3{font-size:19px;margin-top:22px}
+p{margin:8px 0}
+a{color:var(--ink)}
+.seg{display:flex;border:1px solid var(--ink);border-radius:4px;overflow:hidden;margin-top:18px}
+.seg button{flex:1;border:none;border-radius:0;font-weight:400;padding:10px 8px}
+.seg button+button{border-left:1px solid var(--ink)}
+.seg button[aria-pressed="true"]{background:var(--ink);color:#fff;font-weight:600}
+.rec{border-bottom:1px solid var(--line)}
+.rec summary{list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:14px 4px}
+.rec summary::-webkit-details-marker{display:none}
+.rec summary b{font-size:18px}
+.rec summary span{color:var(--soft);font-size:15px;white-space:nowrap}
+.rec[open] summary{background:var(--tint)}
+.rec dl{display:grid;grid-template-columns:130px 1fr;gap:6px 14px;margin:0;padding:12px 4px 16px}
+.rec dt{color:var(--soft)} .rec dd{margin:0}
+@media(max-width:420px){.rec dl{grid-template-columns:1fr}.rec dd{margin-bottom:6px}}
+.top{border-bottom:1px solid var(--line)}
+.top .in{padding:14px 20px;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:10px}
+.top .l{justify-self:start} .top .r{justify-self:end;display:flex;gap:8px}
+.pill{border-radius:999px;padding:9px 18px;font-size:15px}
+@media(max-width:560px){.top .in{grid-template-columns:auto 1fr auto;padding:12px}.brand{font-size:17px;text-align:center}.pill{padding:8px 12px;font-size:14px}.long{display:none}}
+.brand{line-height:1.2;font-weight:700;font-size:22px;text-decoration:none;letter-spacing:-.01em}
+main{max-width:760px;margin:0 auto;padding:26px 20px 60px}
+.lead{color:var(--soft);font-size:17px;margin-bottom:22px}
+label{display:block;font-weight:600;font-size:16px;margin:16px 0 6px}
+input,select,textarea{width:100%;font:inherit;font-size:17px;color:var(--ink);background:#fff;border:1px solid #9A9A9A;border-radius:4px;padding:11px 12px}
+input:focus,select:focus,textarea:focus,button:focus-visible,a:focus-visible,.opt:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:560px){.row{grid-template-columns:1fr}}
+button,.btn{white-space:nowrap;font:600 16px "Source Serif 4",Georgia,serif;border-radius:4px;padding:11px 18px;cursor:pointer;border:1px solid var(--ink);background:#fff;color:var(--ink);text-decoration:none;display:inline-block;text-align:center}
+.dark{background:var(--ink);color:#fff}
+.btn.pill,button.pill{border-radius:999px}
+.wide{width:100%;padding:15px;font-size:18px;margin-top:24px}
+.small{padding:7px 12px;font-size:14px}
+.link{border:none;background:none;padding:0;text-decoration:underline;font-weight:400;font-size:inherit}
+.err{color:var(--warn);font-weight:600;min-height:1.2em;margin-top:10px}
+.ok{color:var(--ok);font-weight:600}
+.muted{color:var(--soft)}
+.steps{list-style:none;counter-reset:s;padding:0;margin:20px 0}
+.steps li{counter-increment:s;display:grid;grid-template-columns:44px 1fr;gap:14px;padding:16px 0;border-top:1px solid var(--line)}
+.steps li:last-child{border-bottom:1px solid var(--line)}
+.steps li::before{content:counter(s);width:40px;height:40px;border:1.5px solid var(--ink);border-radius:50%;display:grid;place-items:center;font-weight:700;font-size:19px}
+.steps b{display:block;font-size:18px}
+.check{display:flex;gap:10px;align-items:center;font-weight:400;margin-top:18px}
+.check input{width:20px;height:20px;margin:0}
+.opts{display:grid;gap:8px}
+.opt{display:flex;justify-content:space-between;gap:10px;align-items:center;text-align:left;width:100%;font-weight:400;padding:12px 14px;border:1px solid #9A9A9A}
+.opt[aria-pressed="true"]{border:2px solid var(--ink);background:var(--tint);font-weight:600}
+.opt small{color:var(--soft);font-size:15px}
+.center{text-align:center}
+.status{display:inline-block;margin-top:14px;padding:8px 16px;border:1px solid var(--ink);border-radius:999px;font-weight:600}
+.status.go{background:var(--ink);color:#fff}
+.call{border:1px solid var(--line);border-left:4px solid var(--ink);border-radius:4px;padding:14px 16px;margin-top:12px}
+.call .who{font-weight:700;font-size:19px}
+.acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.flash{animation:fl 1.2s ease}
+@keyframes fl{0%{background:#FFF3B0}100%{background:transparent}}
+@media(prefers-reduced-motion:reduce){.flash{animation:none}}
+.tabs{display:flex;gap:0;border-bottom:1px solid var(--ink);margin:18px 0 6px;overflow-x:auto}
+.tabs button{border:none;border-bottom:3px solid transparent;border-radius:0;padding:10px 14px;font-weight:400;white-space:nowrap}
+.tabs button[aria-selected="true"]{border-bottom-color:var(--ink);font-weight:700}
+#qrbox{display:inline-block;padding:14px;border:1px solid var(--line);margin-top:14px}
+.poster{border:2px solid var(--ink);padding:22px;text-align:center;max-width:420px}
+.guide h3{border-top:1px solid var(--line);padding-top:16px}
+.guide ul{padding-left:20px} .guide li{margin:6px 0}
+.cookie{position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:2px solid var(--ink);padding:14px 18px calc(14px + env(safe-area-inset-bottom,0px));z-index:10}
+.cookie .in{max-width:760px;margin:0 auto;display:flex;gap:14px;align-items:center;justify-content:space-between;flex-wrap:wrap;font-size:15px}
+.cookie p{margin:0;flex:1 1 320px}
+.note{font-size:14px;color:var(--soft);border-top:1px solid var(--line);margin-top:26px;padding-top:12px}
+.share{display:inline-block;vertical-align:-3px}
+@media print{.top,.tabs,.noprint,.cookie{display:none!important} main{padding:0}}
+</style>
+</head>
+<body>
+<header class="top"><div class="in">
+  <div class="l" id="left"></div>
+  <a class="brand" href="#">Örnek Anaokulu</a>
+  <div class="r" id="acct"></div>
+</div></header>
+<main id="app"></main>
+
+<div id="cookie"></div>
+
+<script>
+/* ====== ayarlar ====== */
+const SUPABASE_URL='https://dqxwjnbkqmpfmmzrlgyc.supabase.co';
+const SUPABASE_KEY='sb_publishable_7srmWShL86e3KLvQTmpuxg_88LwaAbL'; // herkese açık anahtar; güvenliği veritabanı kuralları sağlar
+const DOMAIN='okul.local';
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+
+/* ====== yardımcılar ====== */
+const K={h:'ak3_howto_seen',k:'ak3_cookie_ok'};
+const load=(k,d)=>{try{const v=localStorage.getItem(k);return v===null?d:JSON.parse(v)}catch(e){return d}};
+const put=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const hhmm=t=>t?new Date(t).toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit'}):'–';
+const gun=t=>new Date(t).toLocaleDateString('tr-TR',{day:'numeric',month:'long',year:'numeric',weekday:'long'});
+const dayKey=t=>{const d=new Date(t);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
+const dayRange=k=>{const [y,m,d]=k.split('-').map(Number);return [new Date(y,m-1,d).toISOString(),new Date(y,m-1,d+1).toISOString()]};
+const tel=p=>String(p||'').replace(/[^\d+]/g,'');
+const PURPOSES=['Çocuğu teslim alacağım','Çocuğu bırakıyorum','Öğretmenle görüşmek istiyorum'];
+const RELS=['Anne','Baba','Büyükanne / Büyükbaba','Bakıcı','Diğer'];
+const ST={new:'Bekliyor',coming:'Öğretmen geliyor',closed:'Tamamlandı'};
+const $=id=>document.getElementById(id);
+const setErr=(m,id='err')=>{const e=$(id);if(e)e.textContent=m};
+
+/* ====== oturum ====== */
+let me=null; // giriş yapan kişinin profili
+async function loadMe(){
+  const {data:{session}}=await sb.auth.getSession();
+  if(!session){me=null;return null}
+  const {data}=await sb.from('profiles').select('*').eq('id',session.user.id).single();
+  me=data||null; return me;
+}
+async function logout(){ await sb.auth.signOut(); me=null; state={}; stopLive(); if(location.hash==='#'||location.hash==='') route(); else go(''); }
+
+/* ====== yönlendirme ====== */
+let state={}, path='', arg='', seq=0;
+function go(h){ location.hash=h; }
+async function route(){
+  const my=++seq;
+  [path,arg]=(location.hash.slice(1)||'').split('/');
+  if(path!=='gonderildi') clearInterval(state.poll);
+  if(!['ogretmen','yonetici'].includes(path)) stopLive();
+  const veliSayfa=['veli','form','gonderildi'].includes(path);
+  const panel=me?.role==='admin'?'yonetici':me?.role==='teacher'?'ogretmen':'';
+  $('left').innerHTML=veliSayfa?'':'<a class="btn pill" href="#form">Veli <span class="long">kayıt </span>formu</a>';
+  $('acct').innerHTML=veliSayfa?'':panel
+    ?`<a class="btn pill dark" href="#${panel}">Panelim</a><button class="pill long" onclick="logout()">Çıkış yap</button>`
+    :`<a class="btn pill dark" href="#giris">Giriş yap</a>`;
+  let html;
+  try{
+    if(path==='veli') html=load(K.h,false)?(go('form'),null):howtoHTML();
+    else if(path==='form') html=await formHTML();
+    else if(path==='gonderildi') html=await sentHTML();
+    else if(path==='kurulum') html=setupHTML();
+    else if(path==='giris') html=panel?(go(panel),null):loginHTML();
+    else if(path==='sifre') html=me?pwHTML():(go('giris'),null);
+    else if(path==='ogretmen') html=me?.role==='teacher'?(me.must_change?(go('sifre'),null):await teacherHTML()):(go('giris'),null);
+    else if(path==='yonetici') html=me?.role==='admin'?adminHTML():(go('giris'),null);
+    else html=' ';
+  }catch(e){ html=`<h1>Bağlantı sorunu</h1><p class="lead">Sunucuya ulaşılamadı. İnternet bağlantınızı kontrol edip sayfayı yenileyin.</p>`; console.error(e); }
+  if(my!==seq||html===null) return;
+  $('app').innerHTML=html;
+  if(path==='yonetici'){ const t=state.tab||'kayit'; if(t==='kayit') renderLog(); if(t==='ogr') renderTeachers(); if(t==='qr') drawQR(); startLive(); }
+  if(path==='ogretmen') startLive();
+  cookieBar();
+}
+window.addEventListener('hashchange',()=>{window.scrollTo(0,0);route()});
+
+/* ====== çerez bandı ====== */
+function cookieBar(){
+  const el=$('cookie');
+  const show=['veli','form','gonderildi'].includes(path)&&!load(K.k,false);
+  el.innerHTML=show?`<div class="cookie" role="region" aria-label="Çerez bilgilendirmesi"><div class="in">
+    <p>Bu sistem, kapıya gelişinizi (adınız, telefonunuz ve geliş saatiniz) çocukların güvenliği için kaydeder. Tercihlerinizi hatırlamak için yalnızca zorunlu çerezler kullanılır.</p>
+    <button class="dark" onclick="put(K.k,true);cookieBar()">Anladım</button></div></div>`:'';
+}
+
+/* ====== VELİ ====== */
+function howtoHTML(){
+  return `<h1>Hoş geldiniz</h1>
+  <ol class="steps">
+    <li><span><b>Formu doldurun</b>Adınızı, telefonunuzu ve çocuğunuzun adını yazın.</span></li>
+    <li><span><b>Öğretmeni seçin</b>Öğretmene bildirim gider.</span></li>
+    <li><span><b>Kapıda bekleyin</b>Öğretmen geldiğinde ekranınızda görürsünüz.</span></li>
+  </ol>
+  <label class="check"><input type="checkbox" id="skip"> Bu sayfayı bir daha gösterme</label>
+  <button class="dark wide" onclick="if($('skip').checked)put(K.h,true);go('form')">Formu doldur</button>`;
+}
+async function formHTML(){
+  if(!state.ts){ const {data,error}=await sb.rpc('active_teachers'); if(error) throw error; state.ts=data||[]; }
+  const f=state.f||{}, ts=state.ts;
+  return `<h1>Veli kayıt formu</h1>
+  <label for="pn">Adınız soyadınız</label><input id="pn" autocomplete="name" placeholder="Semih Köse" value="${esc(f.pn)}">
+  <label for="ph">Telefonunuz</label><input id="ph" type="tel" inputmode="tel" autocomplete="tel" placeholder="05xx xxx xx xx" value="${esc(f.ph)}">
+  <label for="cn">Çocuğunuzun adı soyadı</label><input id="cn" placeholder="Elif Köse" value="${esc(f.cn)}">
+  <div class="row">
+    <div><label for="rel">Yakınlığınız</label><select id="rel">${RELS.map(r=>`<option ${f.rel===r?'selected':''}>${r}</option>`).join('')}</select></div>
+    <div><label for="pu">Geliş amacınız</label><select id="pu">${PURPOSES.map(p=>`<option ${f.pu===p?'selected':''}>${p}</option>`).join('')}</select></div>
+  </div>
+  <label>Öğretmen</label>
+  ${ts.length?`<div class="opts">${ts.map(t=>`<button type="button" class="opt" aria-pressed="${f.tid===t.id}" onclick="pick('${t.id}')"><span>${esc(t.full_name)}</span><small>${esc(t.cls)}</small></button>`).join('')}</div>`
+    :'<p class="muted">Şu an sistemde aktif öğretmen yok. Lütfen girişteki görevliye başvurun.</p>'}
+  <button class="dark wide" id="sendbtn" onclick="send()">Öğretmene haber ver</button>
+  <div class="err" id="err" role="alert"></div>`;
+}
+function grab(){const f=state.f||{};['pn','ph','cn','rel','pu'].forEach(k=>{const e=$(k);if(e)f[k]=e.value});state.f=f;return f}
+function pick(id){ grab().tid=id; route(); }
+async function send(){
+  const f=grab();
+  if(!f.pn?.trim()||f.pn.trim().length<2) return setErr('Adınızı ve soyadınızı yazın.');
+  const digits=(f.ph||'').replace(/\D/g,'');
+  if(digits.length<10||digits.length>13) return setErr('Telefon numaranızı 10 veya 11 rakam olarak yazın.');
+  if(!f.cn?.trim()||f.cn.trim().length<2) return setErr('Çocuğunuzun adını ve soyadını yazın.');
+  if(!f.tid) return setErr('Öğretmeni seçin.');
+  const b=$('sendbtn'); b.disabled=true; b.textContent='Gönderiliyor…';
+  const {data,error}=await sb.rpc('submit_visit',{p_parent:f.pn.trim(),p_phone:f.ph.trim(),p_relation:f.rel||RELS[0],p_child:f.cn.trim(),p_purpose:f.pu||PURPOSES[0],p_teacher:f.tid});
+  if(error){ b.disabled=false; b.textContent='Öğretmene haber ver'; return setErr(error.message.includes('sık')?error.message:'Gönderilemedi. Lütfen tekrar deneyin.'); }
+  state={}; go('gonderildi/'+data);
+}
+async function sentHTML(){
+  const {data,error}=await sb.rpc('visit_status',{p_id:arg});
+  const c=!error&&data?.[0];
+  if(!c) return `<h1>Kayıt bulunamadı</h1><p><a href="#form">Veli kayıt formu</a></p>`;
+  clearInterval(state.poll);
+  if(c.status!=='closed') state.poll=setInterval(()=>{ if(path==='gonderildi') route(); },5000);
+  const st=c.status==='coming'?`<span class="status go">${esc(c.teacher_name)} geliyor</span>`:c.status==='closed'?'<span class="status">Görüşme tamamlandı</span>':'<span class="status">Yanıt bekleniyor</span>';
+  return `<div class="center">
+    <h1>Haber verildi</h1>
+    <p class="lead">${esc(c.teacher_name)} kapıda olduğunuzu öğrendi. Lütfen girişte bekleyin.</p>
+    ${st}
+    <p style="margin-top:28px"><a href="#form" onclick="state={}">Yeni kayıt oluştur</a></p></div>`;
+}
+
+/* ====== GİRİŞ ====== */
+function loginHTML(){
+  return `<h1>Giriş yap</h1>
+  <p class="lead">Öğretmen ve yönetici hesapları için.</p>
+  <label for="lu">Kullanıcı adı</label><input id="lu" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false">
+  <label for="lp">Şifre</label><input id="lp" type="password" autocomplete="current-password" onkeydown="if(event.key==='Enter')login()">
+  <button class="dark wide pill" id="loginbtn" onclick="login()">Giriş yap</button>
+  <div class="err" id="err" role="alert"></div>
+  <p class="note">Hesabınızı okul yönetimi açar. Şifrenizi unuttuysanız yöneticinize başvurun.<br>
+  <a href="#kurulum">Bildirimleri telefona kurma</a><br>
+  Girişiniz ve bildirimlere verdiğiniz yanıtlar kayıt altına alınır. Oturumunuzu hatırlamak için zorunlu bir çerez kullanılır.</p>`;
+}
+async function login(){
+  const u=$('lu').value.trim().toLowerCase(), p=$('lp').value;
+  if(!u||!p) return setErr('Kullanıcı adı ve şifrenizi yazın.');
+  const b=$('loginbtn'); b.disabled=true;
+  const {error}=await sb.auth.signInWithPassword({email:u+'@'+DOMAIN,password:p});
+  b.disabled=false;
+  if(error) return setErr(/invalid/i.test(error.message)?'Kullanıcı adı veya şifre hatalı.':'Giriş yapılamadı. Lütfen tekrar deneyin.');
+  await loadMe();
+  if(!me){ await sb.auth.signOut(); return setErr('Hesap bilgileri bulunamadı. Yöneticinize başvurun.'); }
+  if(!me.active){ await sb.auth.signOut(); me=null; return setErr('Hesabınız şu an pasif. Yöneticinizle görüşün.'); }
+  go(me.role==='admin'?(me.must_change?'sifre':'yonetici'):(me.must_change?'sifre':'ogretmen'));
+}
+function pwHTML(){
+  return `<h1>Yeni şifre belirleyin</h1>
+  <p class="lead">Size verilen ilk şifreyi kendi şifrenizle değiştirin.</p>
+  <label for="p1">Yeni şifre</label><input id="p1" type="password" autocomplete="new-password">
+  <label for="p2">Yeni şifre (tekrar)</label><input id="p2" type="password" autocomplete="new-password">
+  <button class="dark wide" onclick="setPw()">Şifreyi kaydet</button><div class="err" id="err" role="alert"></div>`;
+}
+async function setPw(){
+  const a=$('p1').value,b=$('p2').value;
+  if(a.length<8) return setErr('Şifre en az 8 karakter olmalı.'); if(a!==b) return setErr('İki şifre aynı değil.');
+  const {error}=await sb.auth.updateUser({password:a});
+  if(error) return setErr(/same|different/i.test(error.message)?'Yeni şifre eskisinden farklı olmalı.':'Şifre değiştirilemedi: '+error.message);
+  await sb.rpc('password_changed'); await loadMe();
+  go(me.role==='admin'?'yonetici':'ogretmen');
+}
+
+/* ====== ÖĞRETMEN ====== */
+async function teacherHTML(){
+  const {data,error}=await sb.from('visits').select('*').eq('teacher_id',me.id).neq('status','closed').order('created_at',{ascending:false});
+  if(error) throw error;
+  const open=data||[], perm=('Notification' in window)?Notification.permission:'none';
+  return `<h1>Bekleyen veliler</h1>
+  ${open.length?open.map(callHTML).join(''):'<p class="lead">Şu an bekleyen veli yok.</p>'}
+  <p class="note">
+    ${perm==='granted'?'Bildirimler açık.':`<button class="link" onclick="askNotif()">Bildirimleri aç</button>`}
+    &nbsp; <button class="link" onclick="testNotif()">Test bildirimi gönder</button>
+    <span id="tmsg" style="display:block"></span></p>`;
+}
+function callHTML(c){
+  return `<div class="call ${c.id===state.flash?'flash':''}">
+    <div class="who">${esc(c.parent_name)}</div>
+    <div>${esc(c.child_name)} · ${esc(c.purpose)} · ${hhmm(c.created_at)}</div>
+    <div class="acts">
+      ${c.status==='new'?`<button class="dark" onclick="setSt('${c.id}','coming')">Geliyorum</button>`:'<span class="muted" style="align-self:center">Geliyorum dediniz.</span>'}
+      <button onclick="setSt('${c.id}','closed')">Tamamlandı</button>
+      <a class="btn" href="tel:${esc(tel(c.phone))}">Ara</a></div>
+  </div>`;
+}
+async function setSt(id,s){
+  const now=new Date().toISOString();
+  const patch=s==='coming'?{status:'coming',coming_at:now}:{status:'closed',closed_at:now,closed_by:me.role==='admin'?'yönetici':'öğretmen'};
+  const {error}=await sb.from('visits').update(patch).eq('id',id);
+  if(error) return alert('Kaydedilemedi. Lütfen tekrar deneyin.');
+  if(path==='yonetici'){ state.openRec=id; renderLog(); } else route();
+}
+function askNotif(){ try{Notification.requestPermission().then(()=>route())}catch(e){alert('Bu tarayıcı bildirimleri desteklemiyor. iPhone’da siteyi önce ana ekrana ekleyin.')} }
+function notify(title,body){ ding(); try{ if(Notification.permission==='granted') new Notification(title,{body}) }catch(e){} }
+function testNotif(){ notify('Test bildirimi','Bildirimler çalışıyor.'); const b=$('tmsg'); if(b) b.textContent='Test bildirimi gönderildi. Ses duyduysanız sistem çalışıyor.'; }
+function ding(){try{const a=new (window.AudioContext||window.webkitAudioContext)();[0,.2].forEach((d,i)=>{const o=a.createOscillator(),g=a.createGain();o.frequency.value=i?1046:784;g.gain.setValueAtTime(.2,a.currentTime+d);g.gain.exponentialRampToValueAtTime(.001,a.currentTime+d+.4);o.connect(g).connect(a.destination);o.start(a.currentTime+d);o.stop(a.currentTime+d+.45)})}catch(e){}}
+
+/* canlı güncelleme */
+let live=null;
+function startLive(){
+  if(live||!me) return;
+  const filter=me.role==='teacher'?{filter:'teacher_id=eq.'+me.id}:{};
+  live=sb.channel('visits-'+me.id).on('postgres_changes',{event:'*',schema:'public',table:'visits',...filter},p=>{
+    if(p.eventType==='INSERT'&&me.role==='teacher'){ state.flash=p.new.id; notify('Kapıda veli var',p.new.parent_name+', '+p.new.child_name+' için.'); }
+    if(path==='ogretmen') route();
+    else if(path==='yonetici'&&(state.tab||'kayit')==='kayit') renderLog();
+  }).subscribe();
+}
+function stopLive(){ if(live){ sb.removeChannel(live); live=null; } }
+
+function setupHTML(){
+  const share=`<svg class="share" width="18" height="20" viewBox="0 0 18 20" aria-label="Paylaş simgesi"><path d="M9 1v12M5 5l4-4 4 4M3 9H1v10h16V9h-2" fill="none" stroke="#000" stroke-width="1.6"/></svg>`;
+  return `<h1>Telefona kurulum</h1>
+  <p class="lead">Bir kez yapmanız yeterli.</p>
+  <ol class="steps">
+    <li><span><b>Safari’de açın</b>Size gönderilen bağlantıyı Safari ile açın.</span></li>
+    <li><span><b>Ana ekrana ekleyin</b>Paylaş ${share} düğmesine basın, "Ana Ekrana Ekle"yi seçin.</span></li>
+    <li><span><b>Simgeden giriş yapın</b>Ana ekrandaki okul simgesini açıp giriş yapın.</span></li>
+    <li><span><b>Bildirimlere izin verin</b>"Bildirimleri aç"a basıp "İzin Ver"i seçin.</span></li>
+  </ol>
+  <details class="rec"><summary><b>Bildirim gelmiyorsa</b><span>Göster</span></summary>
+  <div class="guide"><ul>
+    <li>Rahatsız Etme veya Odak modunu kapatın.</li>
+    <li>Ayarlar, Bildirimler bölümünde okul uygulamasının açık olduğunu kontrol edin.</li>
+    <li>Simgeyi sildiyseniz adımları baştan yapın.</li>
+    <li>iOS sürümü 16.4 veya daha yeni olmalı.</li>
+  </ul></div></details>
+  <p style="margin-top:22px"><a href="#giris">Giriş sayfasına dön</a></p>`;
+}
+
+/* ====== YÖNETİCİ ====== */
+function tab(t){ state.tab=t; route(); }
+function adminHTML(){
+  const t=state.tab||'kayit', tabs=[['kayit','Kayıtlar'],['ogr','Öğretmenler'],['qr','QR kodu'],['kil','Kılavuz']];
+  return `<div class="tabs noprint" role="tablist" style="margin-top:0">${tabs.map(([k,l])=>`<button role="tab" aria-selected="${t===k}" onclick="tab('${k}')">${l}</button>`).join('')}</div>
+  ${t==='kayit'?logHTML():t==='ogr'?'<div id="tarea"><p class="muted">Yükleniyor…</p></div>':t==='qr'?qrHTML():guideHTML()}`;
+}
+async function names(){
+  const {data}=await sb.from('profiles').select('id,full_name,username,cls,role,active,must_change').order('full_name');
+  state.people=data||[]; return state.people;
+}
+const nameOf=id=>(state.people||[]).find(p=>p.id===id)?.full_name||'–';
+/* kayıtlar */
+function logHTML(){
+  const m=state.mode||(state.mode='bugun');
+  return `<div class="seg" role="group" aria-label="Kayıt aralığı">
+    <button aria-pressed="${m==='bugun'}" onclick="setMode('bugun')">Bugün</button>
+    <button aria-pressed="${m==='son'}" onclick="setMode('son')">Son 500</button>
+    <button aria-pressed="${m==='tarih'}" onclick="setMode('tarih')">Tarih gir</button>
+  </div>
+  ${m==='tarih'?`<label for="fd">Tarih</label><input id="fd" type="date" value="${state.day||dayKey(Date.now())}" onchange="state.day=this.value;renderLog()">`:''}
+  <div id="logarea"><p class="muted" style="margin-top:16px">Yükleniyor…</p></div>`;
+}
+function setMode(m){ state.mode=m; state.openRec=null; route(); }
+async function fetchLog(){
+  const m=state.mode||'bugun';
+  let q=sb.from('visits').select('*').order('created_at',{ascending:false});
+  if(m==='son') q=q.limit(500);
+  else { const [a,b]=dayRange(m==='bugun'?dayKey(Date.now()):(state.day||dayKey(Date.now()))); q=q.gte('created_at',a).lt('created_at',b); }
+  const {data,error}=await q; if(error) throw error; return data||[];
+}
+async function renderLog(){
+  const el=$('logarea'); if(!el) return;
+  let rows; try{ if(!state.people) await names(); rows=await fetchLog(); }catch(e){ el.innerHTML='<p class="err">Kayıtlar yüklenemedi. Sayfayı yenileyin.</p>'; return; }
+  state.rows=rows; const m=state.mode||'bugun';
+  el.innerHTML=`<p class="muted" style="margin:16px 0 4px">${rows.length} kayıt. Ayrıntı için isme dokunun.</p>
+  ${rows.length?rows.map(c=>`<details class="rec" ${state.openRec===c.id?'open':''} ontoggle="if(this.open)state.openRec='${c.id}'"><summary><b>${esc(c.parent_name)}</b><span>${m==='son'?new Date(c.created_at).toLocaleDateString('tr-TR')+' ':''}${hhmm(c.created_at)}</span></summary>
+    <dl>
+      <dt>${c.relation==='Anne'||c.relation==='Baba'?'Çocuğu':'Çocuk'}</dt><dd>${esc(c.child_name)}</dd>
+      <dt>Yakınlık</dt><dd>${esc(c.relation)}</dd>
+      <dt>Telefon</dt><dd><a href="tel:${esc(tel(c.phone))}">${esc(c.phone)}</a></dd>
+      <dt>Giriş günü</dt><dd>${gun(c.created_at)}</dd>
+      <dt>Giriş saati</dt><dd>${hhmm(c.created_at)}</dd>
+      <dt>Amaç</dt><dd>${esc(c.purpose)}</dd>
+      <dt>Öğretmen</dt><dd>${esc(nameOf(c.teacher_id))}</dd>
+      <dt>Durum</dt><dd>${ST[c.status]}${c.closed_at?', '+hhmm(c.closed_at)+(c.closed_by==='yönetici'?' (yönetici)':''):''}
+        ${c.status!=='closed'?` <button class="small" style="margin-left:8px" onclick="setSt('${c.id}','closed')">Kapat</button>`:''}</dd>
+    </dl></details>`).join(''):'<p>Bu aralıkta kayıt yok.</p>'}
+  ${rows.length?`<p style="margin-top:18px"><button onclick="exportCSV()">Excel olarak indir</button> <span class="muted" id="dlmsg" style="font-size:15px"></span></p>`:''}`;
+}
+function exportCSV(){
+  const q=v=>'"'+String(v??'').replace(/"/g,'""')+'"';
+  const lines=[['Giriş günü','Giriş saati','Veli','Telefon','Yakınlık','Çocuk','Amaç','Öğretmen','Durum','Kapanış','Kapatan'].map(q).join(';')]
+    .concat((state.rows||[]).map(c=>[dayKey(c.created_at),hhmm(c.created_at),c.parent_name,c.phone,c.relation,c.child_name,c.purpose,nameOf(c.teacher_id),ST[c.status],hhmm(c.closed_at),c.closed_by||''].map(q).join(';')));
+  const u=URL.createObjectURL(new Blob(['\ufeff'+lines.join('\r\n')],{type:'text/csv;charset=utf-8'}));
+  const l=document.createElement('a'); l.href=u; l.download='kapi-kayitlari.csv'; document.body.appendChild(l); l.click(); l.remove(); setTimeout(()=>URL.revokeObjectURL(u),1000);
+  $('dlmsg').textContent='Dosya indirildi.';
+}
+/* öğretmenler */
+async function renderTeachers(){
+  const el=$('tarea'); if(!el) return;
+  try{ await names(); }catch(e){ el.innerHTML='<p class="err">Öğretmenler yüklenemedi.</p>'; return; }
+  const ts=state.people.filter(p=>p.role==='teacher');
+  el.innerHTML=`${ts.length?'':'<p class="muted" style="margin-top:16px">Henüz öğretmen hesabı yok.</p>'}
+  ${ts.map(t=>`<details class="rec"><summary><b>${esc(t.full_name)}</b><span>${t.active?esc(t.cls||''):'Pasif'}</span></summary>
+    <dl><dt>Sınıf</dt><dd>${esc(t.cls||'–')}</dd><dt>Kullanıcı adı</dt><dd>${esc(t.username)}</dd>
+    <dt>Durum</dt><dd>${t.active?'Aktif':'Pasif'}${t.must_change?', ilk şifresini henüz değiştirmedi':''}</dd></dl>
+    <div class="acts" style="margin:0 4px 16px"><button class="small" onclick="toggleT('${t.id}',${!t.active})">${t.active?'Pasif yap':'Aktif yap'}</button>
+    <button class="small" onclick="resetPw('${t.id}')">Şifre sıfırla</button>
+    <button class="small" onclick="copySetup(this)">Kurulum bağlantısını kopyala</button></div></details>`).join('')}
+  <details class="rec" ${state.addOpen?'open':''}><summary><b>Yeni öğretmen ekle</b><span>+</span></summary><div style="padding:0 4px 18px">
+  <label for="nn">Ad soyad</label><input id="nn">
+  <label for="nc">Sınıf</label><input id="nc" placeholder="Örneğin: Lale sınıfı">
+  <div class="row"><div><label for="nu">Kullanıcı adı</label><input id="nu" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="ornek: ayse.yilmaz"></div><div><label for="np">İlk şifre</label><input id="np" placeholder="En az 8 karakter"></div></div>
+  <p class="muted" style="font-size:15px">Kullanıcı adında Türkçe karakter ve boşluk kullanılamaz; yalnızca a-z, rakam, nokta ve tire.</p>
+  <button class="dark" id="addbtn" onclick="addT()">Öğretmeni ekle</button><div class="err" id="err" role="alert"></div></div></details>`;
+}
+async function callAdmin(body){
+  const {data,error}=await sb.functions.invoke('admin-users',{body});
+  if(error){ let m='İşlem yapılamadı.'; try{ m=(await error.context.json()).error||m }catch(e){} throw new Error(m); }
+  return data;
+}
+async function addT(){
+  const v=id=>$(id).value.trim();
+  const n=v('nn'),c=v('nc'),u=v('nu').toLowerCase(),p=v('np');
+  state.addOpen=true;
+  if(!n||!u) return setErr('Ad soyad ve kullanıcı adını yazın.');
+  if(!/^[a-z0-9._-]{3,30}$/.test(u)) return setErr('Kullanıcı adı 3-30 karakter olmalı; yalnızca a-z, rakam, nokta ve tire.');
+  if(p.length<8) return setErr('İlk şifre en az 8 karakter olmalı.');
+  const b=$('addbtn'); b.disabled=true; b.textContent='Ekleniyor…';
+  try{ await callAdmin({action:'create',username:u,password:p,full_name:n,cls:c}); state.addOpen=false; renderTeachers(); }
+  catch(e){ b.disabled=false; b.textContent='Öğretmeni ekle'; setErr(e.message); }
+}
+async function toggleT(id,val){ const {error}=await sb.from('profiles').update({active:val}).eq('id',id); if(error) alert('Değiştirilemedi.'); renderTeachers(); }
+async function resetPw(id){
+  const p=prompt('Yeni geçici şifre (en az 8 karakter). Öğretmen ilk girişte değiştirecek:'); if(p===null) return;
+  if(p.length<8) return alert('Şifre en az 8 karakter olmalı.');
+  try{ await callAdmin({action:'reset_password',id,password:p}); alert('Şifre sıfırlandı.'); renderTeachers(); }catch(e){ alert(e.message); }
+}
+function copySetup(b){ const u=location.href.split('#')[0]+'#kurulum'; try{navigator.clipboard.writeText(u).then(()=>b.textContent='Kopyalandı',()=>prompt('Bağlantıyı kopyalayın:',u))}catch(e){prompt('Bağlantıyı kopyalayın:',u)} }
+/* QR */
+function qrHTML(){
+  return `<div class="poster" style="margin-top:20px">
+    <h2>Öğretmeninize haber verin</h2>
+    <p>Telefonunuzun kamerasıyla kodu okutun.</p>
+    <div id="qrbox"></div>
+  </div>
+  <p class="noprint"><button class="dark" onclick="window.print()">Yazdır</button></p>`;
+}
+function drawQR(){
+  const box=$('qrbox'); if(!box) return; box.innerHTML='';
+  const u=location.href.split('#')[0]+'#form';
+  if(window.QRCode) new QRCode(box,{text:u,width:220,height:220,colorDark:'#000000',colorLight:'#ffffff'}); else box.textContent=u;
+}
+/* kılavuz */
+function guideHTML(){
+  const s=(t,b)=>`<details class="rec"><summary><b>${t}</b><span></span></summary><div class="guide" style="padding:0 4px 14px">${b}</div></details>`;
+  return `<div style="margin-top:8px">
+  ${s('Kayıtlar nasıl açılır?','<p>Kendiliğinden açılır. Veli formu gönderdiği anda kayıt listeye düşer, giriş günü ve saati otomatik yazılır.</p>')}
+  ${s('Kayıtlar nasıl kapanır?','<p>Öğretmen "Tamamlandı"ya bastığında kapanır. Açık kalan bir kaydı, Kayıtlar sekmesinde veli adına dokunup "Kapat" ile siz de kapatabilirsiniz. Kapatılan kayıt silinmez.</p>')}
+  ${s('Kayıtları nasıl incelerim?','<p>"Bugün" o günün, "Son 500" en yeni 500 kaydı, "Tarih gir" seçtiğiniz günü gösterir. Ayrıntılar için veli adına dokunun.</p>')}
+  ${s('Öğretmen nasıl eklenir?','<p>Öğretmenler sekmesinde "Yeni öğretmen ekle"yi açın, bilgileri yazın. Sonra "Kurulum bağlantısını kopyala" ile bağlantıyı, kullanıcı adı ve ilk şifreyle öğretmene iletin. Öğretmen ilk girişte şifresini değiştirir.</p>')}
+  ${s('Şifresini unutan öğretmen','<p>Öğretmenin adına dokunup "Şifre sıfırla" ile geçici bir şifre verin.</p>')}
+  ${s('İzinli veya ayrılan öğretmen','<p>"Pasif yap" deyin. Veli formunda görünmez, giriş yapamaz; eski kayıtları silinmez.</p>')}
+  ${s('İşe yarar ipuçları',`<ul>
+    <li>"Bu çocuğu bugün kim aldı?" sorusu için "Bugün"de isimlere göz atın; ayrıntıda çocuğun adı görünür.</li>
+    <li>Veli ekranını denemek için QR kodu kendi telefonunuzla okutun, deneme kaydını sonra kapatın.</li>
+    <li>Öğretmen "bildirim gelmiyor" derse Odak modu, bildirim izni ve ana ekrandaki simgeyi kontrol ettirin.</li>
+    <li>Ay sonunda "Son 500"ü açıp "Excel olarak indir" ile arşivleyin.</li></ul>`)}
+  </div>`;
+}
+
+/* ====== başlat ====== */
+sb.auth.onAuthStateChange((ev)=>{ if(ev==='SIGNED_OUT'){ me=null; } });
+loadMe().catch(()=>{}).finally(route);
+</script>
+</body>
+</html>
