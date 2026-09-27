@@ -102,7 +102,7 @@ button,.btn{white-space:nowrap;font:600 16px "Source Serif 4",Georgia,serif;bord
 <body>
 <header class="top"><div class="in">
   <div class="l" id="left"></div>
-  <a class="brand" href="#">Örnek Anaokulu</a>
+  <a class="brand" href="#" id="brand"></a>
   <div class="r" id="acct"></div>
 </div></header>
 <main id="app"></main>
@@ -151,6 +151,11 @@ const RELS=['Anne','Baba','Diğer'];
 const ST={new:'Bekliyor',coming:'Öğretmen geliyor',closed:'Tamamlandı'};
 const $=id=>document.getElementById(id);
 const setErr=(m,id='err')=>{const e=$(id);if(e)e.textContent=m};
+
+/* ====== okul adı ====== */
+let school=load('ak3_school','');
+function applySchool(){ const n=school||'Anaokulu'; const b=$('brand'); if(b) b.textContent=n; document.title=n; const m=document.querySelector('meta[name="apple-mobile-web-app-title"]'); if(m) m.setAttribute('content',n); }
+async function loadSchool(){ try{ const {data}=await sb.from('school_settings').select('name').eq('id',1).maybeSingle(); if(data&&data.name&&data.name!==school){ school=data.name; put('ak3_school',school); } }catch(e){} applySchool(); }
 
 /* ====== oturum ====== */
 let me=null; // giriş yapan kişinin profili
@@ -380,9 +385,9 @@ function setupHTML(){
 /* ====== YÖNETİCİ ====== */
 function tab(t){ state.tab=t; route(); }
 function adminHTML(){
-  const t=state.tab||'kayit', tabs=[['kayit','Kayıtlar'],['ogr','Öğretmenler'],['qr','QR kodu'],['kil','Kılavuz']];
+  const t=state.tab||'kayit', tabs=[['kayit','Kayıtlar'],['ogr','Öğretmenler'],['qr','QR kodu'],['ayar','Okul ayarları'],['kil','Kılavuz']];
   return `<div class="tabs noprint" role="tablist" style="margin-top:0">${tabs.map(([k,l])=>`<button role="tab" aria-selected="${t===k}" onclick="tab('${k}')">${l}</button>`).join('')}</div>
-  ${t==='kayit'?logHTML():t==='ogr'?'<div id="tarea"><p class="muted">Yükleniyor…</p></div>':t==='qr'?qrHTML():guideHTML()}`;
+  ${t==='kayit'?logHTML():t==='ogr'?'<div id="tarea"><p class="muted">Yükleniyor…</p></div>':t==='qr'?qrHTML():t==='ayar'?settingsHTML():guideHTML()}`;
 }
 async function names(){
   const {data}=await sb.from('profiles').select('id,full_name,username,cls,role,active,must_change').order('full_name');
@@ -477,9 +482,23 @@ async function resetPw(id){
   try{ await callAdmin({action:'reset_password',id,password:p}); alert('Şifre sıfırlandı.'); renderTeachers(); }catch(e){ alert(e.message); }
 }
 function copySetup(b){ const u=location.href.split('#')[0]+'#kurulum'; try{navigator.clipboard.writeText(u).then(()=>b.textContent='Kopyalandı',()=>prompt('Bağlantıyı kopyalayın:',u))}catch(e){prompt('Bağlantıyı kopyalayın:',u)} }
+/* okul ayarları */
+function settingsHTML(){
+  return '<label for="sn">Okulun adı</label><input id="sn" value="'+esc(school)+'" placeholder="Örneğin: Papatya Anaokulu">'
+   +'<p class="muted" style="font-size:15px">Bu ad sitenin üstünde, sekme başlığında, QR afişinde ve öğretmenlere giden bildirimlerde otomatik kullanılır. Telefonuna daha önce kurulum yapmış öğretmenlerin, bildirimin üstündeki uygulama adının da değişmesi için simgeyi silip yeniden eklemesi gerekir.</p>'
+   +'<button class="dark" onclick="saveSchool()">Kaydet</button><div class="err" id="err" role="alert"></div><p class="ok" id="snok"></p>';
+}
+async function saveSchool(){
+  const n=$('sn').value.trim();
+  if(n.length<2||n.length>60) return setErr('Okul adı 2 ile 60 karakter arasında olmalı.');
+  const {error}=await sb.from('school_settings').update({name:n,updated_at:new Date().toISOString()}).eq('id',1);
+  if(error) return setErr('Kaydedilemedi. Lütfen tekrar deneyin.');
+  school=n; put('ak3_school',n); applySchool(); setErr(''); $('snok').textContent='Kaydedildi.';
+}
 /* QR */
 function qrHTML(){
   return `<div class="poster" style="margin-top:20px">
+    <p style="font-weight:700;font-size:20px;margin:0 0 6px">${esc(school)}</p>
     <h2>Öğretmeninize haber verin</h2>
     <p>Telefonunuzun kamerasıyla kodu okutun.</p>
     <div id="qrbox"></div>
@@ -511,7 +530,7 @@ function guideHTML(){
 
 /* ====== başlat ====== */
 sb.auth.onAuthStateChange((ev)=>{ if(ev==='SIGNED_OUT'){ me=null; } });
-loadMe().catch(()=>{}).finally(route);
+applySchool(); loadSchool(); loadMe().catch(()=>{}).finally(route);
 </script>
 </body>
 </html>
