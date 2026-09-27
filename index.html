@@ -7,6 +7,8 @@
 <meta name="description" content="Anaokulu QR kapı sistemi">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Kapı Sistemi">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon.svg">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🏫</text></svg>">
 <title>Anaokulu Kapı Sistemi</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -113,6 +115,26 @@ const SUPABASE_URL='https://dqxwjnbkqmpfmmzrlgyc.supabase.co';
 const SUPABASE_KEY='sb_publishable_7srmWShL86e3KLvQTmpuxg_88LwaAbL'; // herkese açık anahtar; güvenliği veritabanı kuralları sağlar
 const DOMAIN='okul.local';
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+
+/* ====== telefon bildirimleri (web push) ====== */
+const PUSH_URL=SUPABASE_URL+'/functions/v1/push';
+if('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(()=>{});
+const isIOS=/iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+const standalone=matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;
+function b64u(b){const p='='.repeat((4-b.length%4)%4);const r=atob((b+p).replace(/-/g,'+').replace(/_/g,'/'));return Uint8Array.from(r,c=>c.charCodeAt(0))}
+async function enablePush(){
+  if(isIOS&&!standalone) throw new Error('iPhone’da bildirim için siteyi önce Safari’de açıp Paylaş > "Ana Ekrana Ekle" deyin, sonra ana ekrandaki simgeden açıp tekrar deneyin.');
+  if(!('serviceWorker' in navigator)||!('PushManager' in window)||!('Notification' in window)) throw new Error('Bu tarayıcı bildirimleri desteklemiyor. iPhone’da iOS 16.4 veya daha yeni bir sürüm gerekir.');
+  const perm=await Notification.requestPermission();
+  if(perm!=='granted') throw new Error('Bildirim izni verilmedi. Ayarlar > Bildirimler bölümünden bu uygulamaya izin verip tekrar deneyin.');
+  const reg=await navigator.serviceWorker.ready;
+  const {publicKey}=await (await fetch(PUSH_URL)).json();
+  let sub=await reg.pushManager.getSubscription();
+  if(!sub) sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:b64u(publicKey)});
+  const j=sub.toJSON();
+  const {error}=await sb.rpc('save_push_subscription',{p_endpoint:j.endpoint,p_p256dh:j.keys.p256dh,p_auth:j.keys.auth});
+  if(error) throw new Error('Telefon kaydedilemedi. Lütfen tekrar deneyin.');
+}
 
 /* ====== yardımcılar ====== */
 const K={h:'ak3_howto_seen',k:'ak3_cookie_ok'};
@@ -305,13 +327,18 @@ async function setSt(id,s){
   if(error) return alert('Kaydedilemedi. Lütfen tekrar deneyin.');
   if(path==='yonetici'){ state.openRec=id; renderLog(); } else route();
 }
-function askNotif(){ try{Notification.requestPermission().then(()=>route())}catch(e){alert('Bu tarayıcı bildirimleri desteklemiyor. iPhone’da siteyi önce ana ekrana ekleyin.')} }
-function notify(title,body){ ding(); try{ if(Notification.permission==='granted') new Notification(title,{body}) }catch(e){} }
+async function askNotif(){ try{ await enablePush(); route(); }catch(e){ alert(e.message); } }
+function notify(){ ding(); } // sistem bildirimini sunucu (web push) gönderir
 async function testNotif(){
-  const b=$('tmsg');
-  try{ if('Notification' in window&&Notification.permission==='default') await Notification.requestPermission(); }catch(e){}
-  notify('Test bildirimi','Bildirimler çalışıyor.');
-  if(b) b.textContent=('Notification' in window&&Notification.permission==='granted')?'Test bildirimi gönderildi. Bildirim ve ses geldiyse kurulum tamam.':'Ses çaldı ama bildirim izni verilmedi. iPhone’da siteyi önce ana ekrana ekleyip oradan açın.';
+  const b=$('tmsg'), say=m=>{if(b)b.textContent=m};
+  if(!me) return say('Önce giriş yapın.');
+  say('Hazırlanıyor…');
+  try{
+    await enablePush();
+    const {data,error}=await sb.functions.invoke('push',{body:{action:'test'}});
+    if(error||!data) throw new Error('Test bildirimi gönderilemedi. Lütfen tekrar deneyin.');
+    say(data.sent?'Test bildirimi gönderildi. Birkaç saniye içinde telefonunuza gelmesi gerekir; geldiyse kurulum tamam.':'Telefon kaydı bulunamadı. Lütfen tekrar deneyin.');
+  }catch(e){ say(e.message); }
 }
 function ding(){try{const a=new (window.AudioContext||window.webkitAudioContext)();[0,.2].forEach((d,i)=>{const o=a.createOscillator(),g=a.createGain();o.frequency.value=i?1046:784;g.gain.setValueAtTime(.2,a.currentTime+d);g.gain.exponentialRampToValueAtTime(.001,a.currentTime+d+.4);o.connect(g).connect(a.destination);o.start(a.currentTime+d);o.stop(a.currentTime+d+.45)})}catch(e){}}
 
