@@ -228,9 +228,9 @@ function howtoHTML(){
 async function formHTML(){
   const f=state.f||{};
   return `<h1>Veli kayıt formu</h1>
-  <label for="pn">Adınız soyadınız</label><input id="pn" autocomplete="name" placeholder="Semih Köse" value="${esc(f.pn)}">
+  <label for="pn">Adınız soyadınız</label><input id="pn" autocomplete="name" value="${esc(f.pn)}">
   <label for="ph">Telefonunuz</label><input id="ph" type="tel" inputmode="tel" autocomplete="tel" placeholder="05xx xxx xx xx" value="${esc(f.ph)}">
-  <label for="cn">Çocuğunuzun adı soyadı</label><input id="cn" placeholder="Elif Köse" value="${esc(f.cn)}">
+  <label for="cn">Çocuğunuzun adı soyadı</label><input id="cn" value="${esc(f.cn)}">
   <div class="row">
     <div><label for="rel">Yakınlığınız</label><select id="rel">${RELS.map(r=>`<option ${f.rel===r?'selected':''}>${r}</option>`).join('')}</select></div>
     <div><label for="pu">Geliş amacınız</label><select id="pu">${PURPOSES.map(p=>`<option ${f.pu===p?'selected':''}>${p}</option>`).join('')}</select></div>
