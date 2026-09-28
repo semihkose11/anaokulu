@@ -148,6 +148,7 @@ const dayRange=k=>{const [y,m,d]=k.split('-').map(Number);return [new Date(y,m-1
 const tel=p=>String(p||'').replace(/[^\d+]/g,'');
 const PURPOSES=['Çocuğu teslim alacağım','Çocuğu bırakıyorum','Öğretmenle görüşmek istiyorum'];
 const RELS=['Anne','Baba','Diğer'];
+const CLASSES=['5 Yaş A Şubesi','5 Yaş B Şubesi','5 Yaş C Şubesi','4 Yaş A Şubesi','4 Yaş B Şubesi','4 Yaş C Şubesi','5 Yaş Özel Eğitim Sınıfı'];
 const ST={new:'Bekliyor',coming:'Öğretmen geliyor',closed:'Tamamlandı'};
 const $=id=>document.getElementById(id);
 const setErr=(m,id='err')=>{const e=$(id);if(e)e.textContent=m};
@@ -228,6 +229,7 @@ async function formHTML(){
   <label for="pn">Adınız soyadınız</label><input id="pn" autocomplete="name" placeholder="Semih Köse" value="${esc(f.pn)}">
   <label for="ph">Telefonunuz</label><input id="ph" type="tel" inputmode="tel" autocomplete="tel" placeholder="05xx xxx xx xx" value="${esc(f.ph)}">
   <label for="cn">Çocuğunuzun adı soyadı</label><input id="cn" placeholder="Elif Köse" value="${esc(f.cn)}">
+  <label for="sc">Çocuğunuzun sınıfı</label><select id="sc"><option value="">Sınıf seçin</option>${CLASSES.map(c=>`<option ${f.sc===c?'selected':''}>${c}</option>`).join('')}</select>
   <div class="row">
     <div><label for="rel">Yakınlığınız</label><select id="rel">${RELS.map(r=>`<option ${f.rel===r?'selected':''}>${r}</option>`).join('')}</select></div>
     <div><label for="pu">Geliş amacınız</label><select id="pu">${PURPOSES.map(p=>`<option ${f.pu===p?'selected':''}>${p}</option>`).join('')}</select></div>
@@ -238,7 +240,7 @@ async function formHTML(){
   <button class="dark wide" id="sendbtn" onclick="send()">Öğretmene haber ver</button>
   <div class="err" id="err" role="alert"></div>`;
 }
-function grab(){const f=state.f||{};['pn','ph','cn','rel','pu'].forEach(k=>{const e=$(k);if(e)f[k]=e.value});state.f=f;return f}
+function grab(){const f=state.f||{};['pn','ph','cn','sc','rel','pu'].forEach(k=>{const e=$(k);if(e)f[k]=e.value});state.f=f;return f}
 function pick(id){ grab().tid=id; route(); }
 async function send(){
   const f=grab();
@@ -246,9 +248,10 @@ async function send(){
   const digits=(f.ph||'').replace(/\D/g,'');
   if(digits.length<10||digits.length>13) return setErr('Telefon numaranızı 10 veya 11 rakam olarak yazın.');
   if(!f.cn?.trim()||f.cn.trim().length<2) return setErr('Çocuğunuzun adını ve soyadını yazın.');
+  if(!f.sc) return setErr('Çocuğunuzun sınıfını seçin.');
   if(!f.tid) return setErr('Öğretmeni seçin.');
   const b=$('sendbtn'); b.disabled=true; b.textContent='Gönderiliyor…';
-  const {data,error}=await sb.rpc('submit_visit',{p_parent:f.pn.trim(),p_phone:f.ph.trim(),p_relation:f.rel||RELS[0],p_child:f.cn.trim(),p_purpose:f.pu||PURPOSES[0],p_teacher:f.tid});
+  const {data,error}=await sb.rpc('submit_visit',{p_parent:f.pn.trim(),p_phone:f.ph.trim(),p_relation:f.rel||RELS[0],p_child:f.cn.trim(),p_purpose:f.pu||PURPOSES[0],p_teacher:f.tid,p_class:f.sc});
   if(error){ b.disabled=false; b.textContent='Öğretmene haber ver'; return setErr(error.message.includes('sık')?error.message:'Gönderilemedi. Lütfen tekrar deneyin.'); }
   state={}; go('gonderildi/'+data);
 }
@@ -318,7 +321,7 @@ async function teacherHTML(){
 function callHTML(c){
   return `<div class="call ${c.id===state.flash?'flash':''}">
     <div class="who">${esc(c.parent_name)}</div>
-    <div>${esc(c.child_name)} · ${esc(c.purpose)} · ${hhmm(c.created_at)}</div>
+    <div>${esc(c.child_name)}${c.child_class?' ('+esc(c.child_class)+')':''} · ${esc(c.purpose)} · ${hhmm(c.created_at)}</div>
     <div class="acts">
       ${c.status==='new'?`<button class="dark" onclick="setSt('${c.id}','coming')">Geliyorum</button>`:'<span class="muted" style="align-self:center">Geliyorum dediniz.</span>'}
       <button onclick="setSt('${c.id}','closed')">Tamamlandı</button>
@@ -421,6 +424,7 @@ async function renderLog(){
   ${rows.length?rows.map(c=>`<details class="rec" ${state.openRec===c.id?'open':''} ontoggle="if(this.open)state.openRec='${c.id}'"><summary><b>${esc(c.parent_name)}</b><span>${m==='son'?new Date(c.created_at).toLocaleDateString('tr-TR')+' ':''}${hhmm(c.created_at)}</span></summary>
     <dl>
       <dt>${c.relation==='Anne'||c.relation==='Baba'?'Çocuğu':'Çocuk'}</dt><dd>${esc(c.child_name)}</dd>
+      <dt>Sınıf</dt><dd>${esc(c.child_class||'–')}</dd>
       <dt>Yakınlık</dt><dd>${esc(c.relation)}</dd>
       <dt>Telefon</dt><dd><a href="tel:${esc(tel(c.phone))}">${esc(c.phone)}</a></dd>
       <dt>Giriş günü</dt><dd>${gun(c.created_at)}</dd>
@@ -434,8 +438,8 @@ async function renderLog(){
 }
 function exportCSV(){
   const q=v=>'"'+String(v??'').replace(/"/g,'""')+'"';
-  const lines=[['Giriş günü','Giriş saati','Veli','Telefon','Yakınlık','Çocuk','Amaç','Öğretmen','Durum','Kapanış','Kapatan'].map(q).join(';')]
-    .concat((state.rows||[]).map(c=>[dayKey(c.created_at),hhmm(c.created_at),c.parent_name,c.phone,c.relation,c.child_name,c.purpose,nameOf(c.teacher_id),ST[c.status],hhmm(c.closed_at),c.closed_by||''].map(q).join(';')));
+  const lines=[['Giriş günü','Giriş saati','Veli','Telefon','Yakınlık','Çocuk','Sınıf','Amaç','Öğretmen','Durum','Kapanış','Kapatan'].map(q).join(';')]
+    .concat((state.rows||[]).map(c=>[dayKey(c.created_at),hhmm(c.created_at),c.parent_name,c.phone,c.relation,c.child_name,c.child_class||'',c.purpose,nameOf(c.teacher_id),ST[c.status],hhmm(c.closed_at),c.closed_by||''].map(q).join(';')));
   const u=URL.createObjectURL(new Blob(['\ufeff'+lines.join('\r\n')],{type:'text/csv;charset=utf-8'}));
   const l=document.createElement('a'); l.href=u; l.download='kapi-kayitlari.csv'; document.body.appendChild(l); l.click(); l.remove(); setTimeout(()=>URL.revokeObjectURL(u),1000);
   $('dlmsg').textContent='Dosya indirildi.';
