@@ -9,7 +9,7 @@ self.addEventListener('push', (e) => {
     body: d.body || '',
     tag: d.tag,
     renotify: true,
-    icon: 'icon.svg',
+    icon: 'logo.png',
     data: { url: self.registration.scope + '#ogretmen' }
   }));
 });
