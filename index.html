@@ -116,8 +116,9 @@ button,.btn{white-space:nowrap;font:600 16px "Source Serif 4",Georgia,serif;bord
 /* ====== ayarlar ====== */
 const SUPABASE_URL='https://dqxwjnbkqmpfmmzrlgyc.supabase.co';
 const SUPABASE_KEY='sb_publishable_7srmWShL86e3KLvQTmpuxg_88LwaAbL'; // herkese açık anahtar; güvenliği veritabanı kuralları sağlar
-const DOMAIN='okul.local';
-const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+const SCHOOL_ID='kad'; // bu sitenin okulu (her okulun sitesinde farklıdır)
+let DOMAIN=SCHOOL_ID==='kad'?'okul.local':SCHOOL_ID+'.okul.local';
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY,SCHOOL_ID==='kad'?{}:{auth:{storageKey:'sb-auth-'+SCHOOL_ID}});
 
 /* ====== telefon bildirimleri (web push) ====== */
 const PUSH_URL=SUPABASE_URL+'/functions/v1/push';
@@ -151,15 +152,15 @@ const dayRange=k=>{const [y,m,d]=k.split('-').map(Number);return [new Date(y,m-1
 const tel=p=>String(p||'').replace(/[^\d+]/g,'');
 const PURPOSES=['Çocuğu teslim alacağım','Çocuğu bırakıyorum','Öğretmenle görüşmek istiyorum'];
 const RELS=['Anne','Baba','Diğer'];
-const CLASSES=['5 Yaş A Şubesi','5 Yaş B Şubesi','5 Yaş C Şubesi','4 Yaş A Şubesi','4 Yaş B Şubesi','4 Yaş C Şubesi','5 Yaş Özel Eğitim Sınıfı'];
+let CLASSES=['5 Yaş A Şubesi','5 Yaş B Şubesi','5 Yaş C Şubesi','4 Yaş A Şubesi','4 Yaş B Şubesi','4 Yaş C Şubesi','5 Yaş Özel Eğitim Sınıfı'];
 const ST={new:'Bekliyor',coming:'Öğretmen geliyor',closed:'Tamamlandı'};
 const $=id=>document.getElementById(id);
 const setErr=(m,id='err')=>{const e=$(id);if(e)e.textContent=m};
 
 /* ====== okul adı ====== */
-let school=load('ak3_school','');
+let school=load('ak3_school_'+SCHOOL_ID,'');
 function applySchool(){ const n=school||'Anaokulu'; const b=$('brand'); if(b) b.textContent=n; document.title=n; const m=document.querySelector('meta[name="apple-mobile-web-app-title"]'); if(m) m.setAttribute('content',n); }
-async function loadSchool(){ try{ const {data}=await sb.from('school_settings').select('name').eq('id',1).maybeSingle(); if(data&&data.name&&data.name!==school){ school=data.name; put('ak3_school',school); } }catch(e){} applySchool(); }
+async function loadSchool(){ try{ const {data}=await sb.from('schools').select('name,email_domain,classes').eq('id',SCHOOL_ID).maybeSingle(); if(data){ if(data.name){ school=data.name; put('ak3_school_'+SCHOOL_ID,school); } if(data.email_domain) DOMAIN=data.email_domain; if(data.classes&&data.classes.length){ const ch=JSON.stringify(data.classes)!==JSON.stringify(CLASSES); CLASSES=data.classes; if(ch&&path==='form') route(); } } }catch(e){} applySchool(); }
 
 /* ====== oturum ====== */
 let me=null; // giriş yapan kişinin profili
@@ -250,7 +251,7 @@ async function send(){
   if(!f.cn?.trim()||f.cn.trim().length<2) return setErr('Çocuğunuzun adını ve soyadını yazın.');
   if(!f.sc) return setErr('Çocuğunuzun sınıfını seçin.');
   const b=$('sendbtn'); b.disabled=true; b.textContent='Gönderiliyor…';
-  const {data,error}=await sb.rpc('submit_visit',{p_parent:f.pn.trim(),p_phone:f.ph.trim(),p_relation:f.rel||RELS[0],p_child:f.cn.trim(),p_purpose:f.pu||PURPOSES[0],p_class:f.sc});
+  const {data,error}=await sb.rpc('submit_visit',{p_parent:f.pn.trim(),p_phone:f.ph.trim(),p_relation:f.rel||RELS[0],p_child:f.cn.trim(),p_purpose:f.pu||PURPOSES[0],p_class:f.sc,p_school:SCHOOL_ID});
   if(error){ b.disabled=false; b.textContent='Öğretmene haber ver'; return setErr(error.message.includes('sık')?error.message:'Gönderilemedi. Lütfen tekrar deneyin.'); }
   state={}; go('gonderildi/'+data);
 }
@@ -288,6 +289,7 @@ async function login(){
   if(error) return setErr(/invalid/i.test(error.message)?'Kullanıcı adı veya şifre hatalı.':'Giriş yapılamadı. Lütfen tekrar deneyin.');
   await loadMe();
   if(!me){ await sb.auth.signOut(); return setErr('Hesap bilgileri bulunamadı. Yöneticinize başvurun.'); }
+  if(me.school_id&&me.school_id!==SCHOOL_ID){ await sb.auth.signOut(); me=null; return setErr('Bu hesap bu okula ait değil.'); }
   if(!me.active){ await sb.auth.signOut(); me=null; return setErr('Hesabınız şu an pasif. Yöneticinizle görüşün.'); }
   go(me.role==='admin'?(me.must_change?'sifre':'yonetici'):(me.must_change?'sifre':'ogretmen'));
 }
@@ -496,9 +498,9 @@ function settingsHTML(){
 async function saveSchool(){
   const n=$('sn').value.trim();
   if(n.length<2||n.length>60) return setErr('Okul adı 2 ile 60 karakter arasında olmalı.');
-  const {error}=await sb.from('school_settings').update({name:n,updated_at:new Date().toISOString()}).eq('id',1);
+  const {error}=await sb.from('schools').update({name:n,updated_at:new Date().toISOString()}).eq('id',SCHOOL_ID);
   if(error) return setErr('Kaydedilemedi. Lütfen tekrar deneyin.');
-  school=n; put('ak3_school',n); applySchool(); setErr(''); $('snok').textContent='Kaydedildi.';
+  school=n; put('ak3_school_'+SCHOOL_ID,n); applySchool(); setErr(''); $('snok').textContent='Kaydedildi.';
 }
 /* QR */
 function qrHTML(){
