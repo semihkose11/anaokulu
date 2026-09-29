@@ -105,7 +105,7 @@ button,.btn{white-space:nowrap;font:600 16px "Source Serif 4",Georgia,serif;bord
 <body>
 <header class="top"><div class="in">
   <div class="l" id="left"></div>
-  <a class="brand" href="#"><img src="logo.png" alt="" class="logo" width="44" height="44"><span id="brand"></span></a>
+  <a class="brand" href="anasayfa" onclick="event.preventDefault();go('');route()"><img src="logo.png" alt="" class="logo" width="44" height="44"><span id="brand"></span></a>
   <div class="r" id="acct"></div>
 </div></header>
 <main id="app"></main>
@@ -196,7 +196,7 @@ async function route(){
     else if(path==='sifre') html=me?pwHTML():(go('giris'),null);
     else if(path==='ogretmen') html=me?.role==='teacher'?(me.must_change?(go('sifre'),null):await teacherHTML()):(go('giris'),null);
     else if(path==='yonetici') html=me?.role==='admin'?adminHTML():(go('giris'),null);
-    else html=' ';
+    else { html=' '; try{ history.replaceState(null,'','anasayfa'); }catch(e){} }
   }catch(e){ html=`<h1>Bağlantı sorunu</h1><p class="lead">Sunucuya ulaşılamadı. İnternet bağlantınızı kontrol edip sayfayı yenileyin.</p>`; console.error(e); }
   if(my!==seq||html===null) return;
   $('app').innerHTML=html;
@@ -488,7 +488,7 @@ async function resetPw(id){
   if(p.length<8) return alert('Şifre en az 8 karakter olmalı.');
   try{ await callAdmin({action:'reset_password',id,password:p}); alert('Şifre sıfırlandı.'); renderTeachers(); }catch(e){ alert(e.message); }
 }
-function copySetup(b){ const u=location.href.split('#')[0]+'#kurulum'; try{navigator.clipboard.writeText(u).then(()=>b.textContent='Kopyalandı',()=>prompt('Bağlantıyı kopyalayın:',u))}catch(e){prompt('Bağlantıyı kopyalayın:',u)} }
+function copySetup(b){ const u=new URL('./',location.href).href+'#kurulum'; try{navigator.clipboard.writeText(u).then(()=>b.textContent='Kopyalandı',()=>prompt('Bağlantıyı kopyalayın:',u))}catch(e){prompt('Bağlantıyı kopyalayın:',u)} }
 /* okul ayarları */
 function settingsHTML(){
   return '<label for="sn">Okulun adı</label><input id="sn" value="'+esc(school)+'" placeholder="Örneğin: Papatya Anaokulu">'
@@ -515,7 +515,7 @@ function qrHTML(){
 }
 function drawQR(){
   const box=$('qrbox'); if(!box) return; box.innerHTML='';
-  const u=location.href.split('#')[0]+'#form';
+  const u=new URL('./',location.href).href+'#form';
   if(window.QRCode) new QRCode(box,{text:u,width:220,height:220,colorDark:'#000000',colorLight:'#ffffff'}); else box.textContent=u;
 }
 /* kılavuz */
