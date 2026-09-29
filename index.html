@@ -122,7 +122,8 @@ const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY,SCHOOL_ID==='kad'?{}:{a
 
 /* ====== telefon bildirimleri (web push) ====== */
 const PUSH_URL=SUPABASE_URL+'/functions/v1/push';
-if('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(()=>{});
+const BASE='/'+location.pathname.split('/')[1]+'/';
+if('serviceWorker' in navigator) navigator.serviceWorker.register(BASE+'sw.js',{scope:BASE}).catch(()=>{});
 const isIOS=/iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
 const standalone=matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;
 function b64u(b){const p='='.repeat((4-b.length%4)%4);const r=atob((b+p).replace(/-/g,'+').replace(/_/g,'/'));return Uint8Array.from(r,c=>c.charCodeAt(0))}
@@ -170,14 +171,14 @@ async function loadMe(){
   const {data}=await sb.from('profiles').select('*').eq('id',session.user.id).single();
   me=data||null; return me;
 }
-async function logout(){ await sb.auth.signOut(); me=null; state={}; stopLive(); if(location.hash==='#'||location.hash==='') route(); else go(''); }
+async function logout(){ await sb.auth.signOut(); me=null; state={}; stopLive(); go(''); }
 
 /* ====== yönlendirme ====== */
 let state={}, path='', arg='', seq=0;
-function go(h){ location.hash=h; }
+function go(h){ const u=BASE+(h||'anasayfa'); if(location.pathname!==u) history.pushState(null,'',u); window.scrollTo(0,0); route(); }
 async function route(){
   const my=++seq;
-  [path,arg]=(location.hash.slice(1)||'').split('/');
+  { const rel=decodeURIComponent(location.pathname.startsWith(BASE)?location.pathname.slice(BASE.length):'').replace(/\/+$/,''); [path,arg]=(rel==='anasayfa'||rel==='index.html'?'':rel).split('/'); }
   if(path!=='gonderildi') clearInterval(state.poll);
   if(!['ogretmen','yonetici'].includes(path)) stopLive();
   const veliSayfa=['veli','form','gonderildi'].includes(path);
@@ -196,7 +197,7 @@ async function route(){
     else if(path==='sifre') html=me?pwHTML():(go('giris'),null);
     else if(path==='ogretmen') html=me?.role==='teacher'?(me.must_change?(go('sifre'),null):await teacherHTML()):(go('giris'),null);
     else if(path==='yonetici') html=me?.role==='admin'?adminHTML():(go('giris'),null);
-    else { html=' '; try{ history.replaceState(null,'','anasayfa'); }catch(e){} }
+    else { html=' '; try{ if(location.pathname!==BASE+'anasayfa') history.replaceState(null,'',BASE+'anasayfa'); }catch(e){} }
   }catch(e){ html=`<h1>Bağlantı sorunu</h1><p class="lead">Sunucuya ulaşılamadı. İnternet bağlantınızı kontrol edip sayfayı yenileyin.</p>`; console.error(e); }
   if(my!==seq||html===null) return;
   $('app').innerHTML=html;
@@ -204,7 +205,8 @@ async function route(){
   if(path==='ogretmen') startLive();
   cookieBar();
 }
-window.addEventListener('hashchange',()=>{window.scrollTo(0,0);route()});
+window.addEventListener('popstate',()=>{window.scrollTo(0,0);route()});
+document.addEventListener('click',e=>{ const a=e.target.closest&&e.target.closest('a[href^="#"]'); if(!a) return; e.preventDefault(); go(a.getAttribute('href').slice(1)); });
 
 /* ====== çerez bandı ====== */
 function cookieBar(){
@@ -488,7 +490,7 @@ async function resetPw(id){
   if(p.length<8) return alert('Şifre en az 8 karakter olmalı.');
   try{ await callAdmin({action:'reset_password',id,password:p}); alert('Şifre sıfırlandı.'); renderTeachers(); }catch(e){ alert(e.message); }
 }
-function copySetup(b){ const u=new URL('./',location.href).href+'#kurulum'; try{navigator.clipboard.writeText(u).then(()=>b.textContent='Kopyalandı',()=>prompt('Bağlantıyı kopyalayın:',u))}catch(e){prompt('Bağlantıyı kopyalayın:',u)} }
+function copySetup(b){ const u=location.origin+BASE+'kurulum'; try{navigator.clipboard.writeText(u).then(()=>b.textContent='Kopyalandı',()=>prompt('Bağlantıyı kopyalayın:',u))}catch(e){prompt('Bağlantıyı kopyalayın:',u)} }
 /* okul ayarları */
 function settingsHTML(){
   return '<label for="sn">Okulun adı</label><input id="sn" value="'+esc(school)+'" placeholder="Örneğin: Papatya Anaokulu">'
@@ -515,7 +517,7 @@ function qrHTML(){
 }
 function drawQR(){
   const box=$('qrbox'); if(!box) return; box.innerHTML='';
-  const u=new URL('./',location.href).href+'#form';
+  const u=location.origin+BASE+'form';
   if(window.QRCode) new QRCode(box,{text:u,width:220,height:220,colorDark:'#000000',colorLight:'#ffffff'}); else box.textContent=u;
 }
 /* kılavuz */
@@ -538,6 +540,7 @@ function guideHTML(){
 
 /* ====== başlat ====== */
 sb.auth.onAuthStateChange((ev)=>{ if(ev==='SIGNED_OUT'){ me=null; } });
+(function(){ try{ const r=sessionStorage.getItem('spa-path'); if(r){ sessionStorage.removeItem('spa-path'); history.replaceState(null,'',r); } }catch(e){} if(location.hash.length>1) history.replaceState(null,'',BASE+location.hash.slice(1)); })();
 applySchool(); loadSchool(); loadMe().catch(()=>{}).finally(route);
 </script>
 </body>
